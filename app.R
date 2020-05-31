@@ -28,10 +28,13 @@ url1 <- function(x) {
 }
 
 stockListX <- rbind(tidyquant::tq_exchange('AMEX'),tidyquant::tq_exchange('NASDAQ'),tidyquant::tq_exchange('NYSE')) %>%
-  filter(!duplicated(symbol)) %>% filter(!is.na(sector)) %>% filter(!is.na(industry)) %>% filter(!is.na(market.cap))
+  filter(!duplicated(symbol)) %>% filter(!is.na(sector)) %>% filter(!is.na(industry)) %>% filter(!is.na(market.cap)) %>%
+  filter(!duplicated(company))
 
+labelTicker <- data.frame(symbol = list.files(path = './data/'))
+labelTicker$symbol <- gsub('.rds', '', labelTicker$symbol, fixed = TRUE)
 #print(head(stockListX))
-stockList <- stockListX %>% filter(symbol %in% readRDS('./data/labelTicker.rds'))
+stockList <- stockListX %>% filter(symbol %in% labelTicker$symbol) %>% filter(!duplicated(company))
 #print(head(stockList))
 cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#786592', '#ff4e50', '#027971', '#008542', '#5c6d00','#0D1540', '#06357a' )
 
@@ -87,7 +90,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     footer = tablerDashFooter(
       copyrights = "@xbrl-Data, 2020"
     ),
-    title = "tablerDash",
+    title = "xbrl-Data",
 
     body = tablerDash::tablerDashBody(
       #theme_blue_gradient,
@@ -138,7 +141,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
           )
           ),
           column(width = 6,
-          p('Note:  XBRL-Data is in Beta so the Paypal link is still in Sandbox and will charge $0.00 for data access.
+          p('Note:  xbrl-Data is in Beta so the Paypal link is still in Sandbox and will charge $0.00 for data access.
             Please let me know during this period how we can improve the experience.')
           )
           )
@@ -149,7 +152,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
             fluidRow(
               
               
-              column(width = 6,
+              column(width = 3,
                      #tablerCard(
                       # title = "Company Profile",
                        #closable = FALSE,
@@ -166,32 +169,42 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                        h6('1. State Street Global Advisors')
                      #)
             ),
-            column(width = 6,
+            column(width = 9,
                    #tablerCard(
-                  #   title = 'Filing Summary',
-                  #   closable = FALSE,
-                  #   width = 12,
-                  #   status = 'info',
-                     #solidHeader = TRUE,
-                  #   collapsible = TRUE,
-                  h4('Recent Filings'),
-                     DT::dataTableOutput("filingList")
+                   #  title = "Candlestick Chart", 
+                   #  closable = FALSE, 
+                   #  width = 12,
+                   #  status = "info", 
+                   #solidHeader = FALSE, 
+                   #  collapsible = TRUE,
+                   #enable_dropdown = FALSE,
+                   h4('Candlestick Chart'),
+                   highcharter::highchartOutput('stonks'),
+                   h6('Source: Quantmod/Yahoo Finance')
                    #)
             ),
-              column(width = 12,
-              #tablerCard(
-              #  title = "Candlestick Chart", 
-              #  closable = FALSE, 
-              #  width = 12,
-              #  status = "info", 
-                #solidHeader = FALSE, 
-              #  collapsible = TRUE,
-                #enable_dropdown = FALSE,
-              h4('Candlestick Chart'),
-                highcharter::highchartOutput('stonks'),
-                h6('Source: Quantmod/Yahoo Finance')
-              #)
-              )
+            column(width = 8,
+                   tablerCard(
+                     title = 'Recent Data',
+                     closable = FALSE,
+                     width = 12,
+                     status = 'info',
+                   #solidHeader = TRUE,
+                     collapsible = TRUE,
+                  h4('Values in US$Millions'),
+                  DT::dataTableOutput('recent')
+                   )
+            ),
+            column(width = 4,
+                   tablerCard(
+                     title = 'Recent Filings',
+                     closable = FALSE,
+                     width = 12,
+                     status = 'info',
+                   #h4('Recent Filings'),
+                   collapsible = TRUE,
+                   DT::dataTableOutput("filingList"))
+            )
             )
           ),
         tablerTabItem(
@@ -801,7 +814,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     #print(head(df1))
     
     highchart() %>%
-      hc_xAxis(title = list(text = ''), categories = df1$endDate, 
+      hc_xAxis(title = list(text = ''), categories = unique(sort(df1$endDate)), 
                labels = list(style = list(fontSize = '12px', fontWeight = 'bold')))%>%
       hc_yAxis_multiples(list(title = list(text = "<b>US$Millions</b>", style = list(fontSize = '16px', fontWeight = 'bold')),opposite=FALSE,
                               labels = list(style = list(fontSize = '12px', fontWeight = 'bold'))),
@@ -850,7 +863,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       #print(head(df1))
       
       highchart() %>%
-        hc_xAxis(title = list(text = ''), categories = df1$endDate,
+        hc_xAxis(title = list(text = ''), categories = unique(sort(df1$endDate)),
                  labels = list(style = list(fontSize = '12px', fontWeight = 'bold')))%>%
         hc_yAxis(title = list(text = '<b>US$Millions</b>', style = list(fontSize = '16px', fontWeight = 'bold')),
                  labels = list(style = list(fontSize = '12px', fontWeight = 'bold'))) %>%
@@ -892,7 +905,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     #print(head(df1))
     
     highchart() %>%
-      hc_xAxis(title = list(text = ''), categories = df1$endDate,
+      hc_xAxis(title = list(text = ''), categories = unique(sort(df1$endDate)),
                type = 'datetime', dateTimeLabelFormats = list(month = "%b", year = "%y"),
                labels = list(style = list(fontSize = '12px', fontWeight = 'bold')))%>%
       hc_yAxis(title = list(text = '<b>US$Millions</b>', style = list(fontSize = '16px', fontWeight = 'bold')),
@@ -926,7 +939,8 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       group_by(Element, Label) %>% filter(endDate == max(endDate)) %>% ungroup() %>%
       filter(grepl('Debt', Element)) %>% filter(endDate == max(endDate))
     
-    df1 <- tables()  %>% filter(MainElement %in% df1$MainElement) %>%
+    df1 <- tables()  %>% filter(MainElement %in% df1$MainElement) %>% filter(fact > 1) %>%
+      group_by(endDate) %>% filter(n() > 2) %>% ungroup() %>%
       filter(endDate == max(endDate)) %>%# filter(is.na(arcrole)) %>%
       #mutate(Year = extract_numeric(Label)) %>%
       select(Year = Label, Maturing.Debt = fact, PERIOD = PERIOD) %>% mutate(Maturing.Debt = Maturing.Debt/1000000)
@@ -961,7 +975,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     } else {
     operatorSelect <- stockInfo()$symbol
     #print(operatorSelect)
-    filingList <- data.frame(edgarWebR::company_details(operatorSelect, type = '10-K', count = 3)) %>% filter(!grepl('A', filings.type))
+    filingList <- data.frame(edgarWebR::company_details(operatorSelect, type = '10-K', count = 5)) %>% filter(!grepl('A', filings.type))
     filingList1 <- data.frame(edgarWebR::company_details(operatorSelect, type = '10-Q', count = 12)) %>% filter(!grepl('A', filings.type))
     
     filingList <- rbind(filingList[1:3,], filingList1) %>% arrange(desc(filings.filing_date))
@@ -969,7 +983,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     compInfo <- finreportr::CompanyInfo(operatorSelect)
     filingList$Company <- compInfo$company
     rm(filingList1)
-    
+    filingList <- filingList %>% filter(!is.na(information.business_city))
     filingList$url1 <- lapply(filingList$filings.href,  url1)
     filingList$url1 <- gsub('/ix?doc=', '', filingList$url1, fixed=TRUE)
     #print(head(filingList))
@@ -998,6 +1012,15 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     filingList <- as.data.frame(filingList)
     values$filingList1 <- filingList
     }
+  })
+  
+  output$recent <- DT::renderDataTable({
+    df1 <- tables() %>% filter(endDate == max(endDate)) %>% filter(!is.na(arcrole)) %>%
+      mutate(fact = round(fact/1000000,2)) %>%
+      filter(!duplicated(paste0(Element, Period))) %>% select(Table, Label, Date = endDate, Months = Period,
+                                                              Value = fact, Period = PERIOD)
+    names(df1)[ncol(df1)] <- 'Filing Period'
+    DT::datatable(df1, escape = FALSE, rownames = FALSE, options = list(paging = FALSE, searching = FALSE))
   })
   
   output$filingList <- DT::renderDataTable({
