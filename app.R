@@ -152,7 +152,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
             fluidRow(
               
               
-              column(width = 3,
+              column(width = 4,
                      #tablerCard(
                       # title = "Company Profile",
                        #closable = FALSE,
@@ -169,7 +169,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                        h6('1. State Street Global Advisors')
                      #)
             ),
-            column(width = 9,
+            column(width = 8,
                    #tablerCard(
                    #  title = "Candlestick Chart", 
                    #  closable = FALSE, 
@@ -183,7 +183,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                    h6('Source: Quantmod/Yahoo Finance')
                    #)
             ),
-            column(width = 8,
+            column(width = 7,
                    tablerCard(
                      title = 'Recent Data',
                      closable = FALSE,
@@ -195,15 +195,15 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                   DT::dataTableOutput('recent')
                    )
             ),
-            column(width = 4,
+            column(width = 5,
                    tablerCard(
-                     title = 'Recent Filings',
+                     title = 'Debt Summary',
                      closable = FALSE,
                      width = 12,
                      status = 'info',
-                   #h4('Recent Filings'),
-                   collapsible = TRUE,
-                   DT::dataTableOutput("filingList"))
+                     #h4('Recent Filings'),
+                     collapsible = TRUE,
+                     DT::dataTableOutput("debtTable")) 
             )
             )
           ),
@@ -314,7 +314,17 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
           br(),
           br(),
             fluidRow(
-              column(width = 12,
+              column(width = 4,
+              tablerCard(
+                title = 'Recent Filings',
+                closable = FALSE,
+                width = 12,
+                status = 'info',
+                #h4('Recent Filings'),
+                collapsible = TRUE,
+                DT::dataTableOutput("filingList"))
+              ),
+              column(width = 8,
                      tablerCard(
                        title = "Financial Statement Data", 
                        closable = FALSE, 
@@ -1028,19 +1038,19 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
   output$maturity <- renderHighchart({
    
     df1 <- tables() %>% filter(fact > 1) %>%
-      filter(grepl('2020', Label)|
-               grepl('2021', Label)|
-               grepl('2022', Label)) %>%
-      group_by(Element, Label) %>% filter(endDate == max(endDate)) %>% ungroup() %>%
-      filter(grepl('Debt', Element)) %>% filter(endDate == max(endDate))
+      filter(grepl('2021', Label)|
+               grepl('2022', Label)|
+               grepl('2023', Label)) %>%
+      filter(!grepl('eases', MainElement)) %>%
+      filter(grepl('ebt', MainElement)) %>%
+      filter(grepl('us-gaap', Element)) %>% select(Table) %>%
+      left_join(tables()) %>% mutate(Year = as.integer(substr(PERIOD, 3, 7))) %>%
+      filter(Year == max(Year)) %>%
+      filter(endDate == max(endDate)) %>%
+      distinct() %>% mutate(fact = fact/1000000) %>%
+      select(Year = Label, Maturing.Debt = fact, PERIOD)
     
-    df1 <- tables()  %>% filter(MainElement %in% df1$MainElement) %>% filter(fact > 1) %>%
-      group_by(endDate) %>% filter(n() > 2) %>% ungroup() %>%
-      filter(endDate == max(endDate)) %>%# filter(is.na(arcrole)) %>%
-      #mutate(Year = extract_numeric(Label)) %>%
-      select(Year = Label, Maturing.Debt = fact, PERIOD = PERIOD) %>% mutate(Maturing.Debt = Maturing.Debt/1000000)
-    #print(df1)
-    #print(df1)
+      
     highchart() %>%
       hc_add_series(data = df1, "column", hcaes(x = Year, y = Maturing.Debt), name = 'Maturing Debt') %>%
       hc_subtitle(text = paste0('As of: ', df1$PERIOD[1]),
@@ -1127,6 +1137,17 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       filingList <- subset(filingList, select = -c(Company))
       DT::datatable(filingList, escape = FALSE, rownames = FALSE, options = list(paging = FALSE, searching = FALSE))
     }
+  })
+  
+  output$debtTable <- DT::renderDataTable({
+    df1 <- tables() %>% #filter(PERIOD == 'Q42019')  %>%
+      filter(fact > 1) %>% filter(grepl('ue', Element)) %>%
+      filter(grepl('ote', Element)) %>% group_by(endDate) %>% filter(n() > 2) %>% ungroup() %>%
+      filter(endDate == max(endDate)) %>% mutate(Year = as.integer(substr(PERIOD, 3, 7))) %>%
+      filter(Year == max(Year))
+    df1 <- tables() %>% filter(Table %in% df1$Table) %>% filter(PERIOD %in% df1$PERIOD) %>%
+      filter(fact > 1) %>% select(Label, endDate, fact, PERIOD) %>% spread(endDate, fact)
+    DT::datatable(df1, escape = FALSE, rownames = FALSE, options = list(paging = FALSE, searching = FALSE))
   })
   
   
