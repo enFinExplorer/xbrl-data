@@ -247,8 +247,27 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
           
      
             h3('Bulk Financial Download - All Filings (Selected Company)'),
-          p('XBRL Scraping in this site began in 2014, meaning the earliest data will likely be from 2012 onwards.
-             The below table shows all the available information in the download.'),
+          p('XBRL Scraping in this site began in 2014, meaning the earliest data 
+          will likely be from 2012 onwards. The below table shows all the available
+            information in the download. Categories in download are:'),
+          h6('Table: Main Table from Filing Period'),
+          h6('Category:  Parent ID Label'),
+          h6('MainElement: Parent ID'),
+          h6('Element: Child ID'),
+          h6('Label: Child ID Label'),
+          h6('Order:  Order of Element within that Period/Table'),
+          h6('Units: Reported Units in Filing'),
+          h6('Period:  Time Period Specified for Data Point, in Months'),
+          h6('endDate:  As of Date for Data Point'),
+          h6('fact:  Value'),
+          h6('arcrole: Value Here represents a summary line or not'),
+          h6('Type:  Is table a Disclosure, a Financial Satement, or a Document?'),
+          h6('PERIOD: Filing Period'),
+          h6('ticker:  Stock Ticker'),
+          h6('company:  Company Name'),
+          h6('sector:  Industry Sector'),
+          h6('industry: Industry'),
+          br(),
               h5('US$2.00 Charge Per Download'),
               h6('Only one download allowed per session.  Simply refresh the app if another is desired.'),
               fluidRow(
