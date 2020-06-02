@@ -107,7 +107,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
             date = today(),
             href = "https://www.xbrl-data.com",
             #src = "github.png",
-            avatarUrl =  "dollar.png",
+            avatarUrl =  "dollar.PNG",
             width = 12,
             p("xbrl-Data is a project designed to provide
             as-reported financial data from 10-Q/10-K filings
@@ -961,7 +961,6 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     #   mutate(fact = round(fact/1000000, 0)) %>% filter(!duplicated(paste0(endDate, fact))) %>% arrange((Element), endDate) %>%
     #   group_by(endDate) %>% mutate(fact1 = cumsum(fact)) %>% ungroup() %>% group_by(endDate) %>%
     #   mutate(cf = sum(fact)) %>% ungroup()
-    
     df1 <- tables() %>% filter(!is.na(arcrole)) %>% filter(grepl('us-gaap', Element)) %>% 
       filter(grepl('OperatingActi', Element)|
                grepl('InvestingAct', Element)|
@@ -971,67 +970,81 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       arrange(endDate, PERIOD) %>% mutate(Month = Period) %>% group_by(endDate) %>%
       filter(Period == max(Period)) %>% ungroup() %>%
       arrange(Element, endDate) %>% mutate(Year = year(endDate)) %>%
-      mutate(Month = paste0('Q', Month)) %>%
-      spread(Month, fact) %>% arrange(Element, Year) %>% group_by(Year, Element) %>%
-      mutate(Q12 = mean(Q12, na.rm=TRUE),
-             Q9 = mean(Q9, na.rm=TRUE),
-             Q6 = mean(Q6, na.rm=TRUE),
-             Q3=mean(Q3, na.rm=TRUE)) %>%
-      ungroup() %>% mutate(Q12 = replace(Q12, is.nan(Q12), 0),
-                           Q9 = replace(Q9, is.nan(Q9), 0),
-                           Q6 = replace(Q6, is.nan(Q6), 0),
-                           Q3 = replace(Q3, is.nan(Q3), 0)) %>%
-      filter(!duplicated(paste0(Q3, Q6, Q9, Q12))) %>% #subset(select = -c(PERIOD)) %>%
-      select(Element, PERIOD,  Year, Q3, Q6, Q9, Q12) %>% group_by(Element, Year) %>%
-      mutate(Q12 = Q12-Q9, Q9 = Q9-Q6, Q6 = Q6-Q3) %>% ungroup() %>%
-      gather(Month, fact, -c(Element, Year, PERIOD)) %>% mutate(Month = as.integer(gsub('Q', '', Month))) %>%
-      arrange(Element, Month, Year) %>% mutate(Date = paste0(Month,'/',days_in_month(Month),'/',Year)) %>%
-      select(Date, Element, PERIOD, fact) %>%
-      mutate(Quarter = as.integer(substr(PERIOD, 2, 2)), Year = as.integer(substr(PERIOD, 3, 7))) %>%
-      mutate(maxDate = paste0(Quarter*3,'/', days_in_month(Quarter*3), '/', Year)) %>%
-      mutate(maxDate = as.POSIXct(maxDate, format = '%m/%d/%Y'), Date = as.POSIXct(Date, format = '%m/%d/%Y')) %>%
-      mutate(maxDate = max(maxDate)) %>%
-      filter(Date <= maxDate) %>% select(Date, Element, fact) %>%
-      group_by(Date) %>% filter(sum(fact) != 0) %>% ungroup() %>%
-      distinct() %>%
-      mutate(Date = as.POSIXct(Date, format = '%m/%d/%Y')) %>% arrange(Element, Date) %>%
-      group_by(Element) %>% mutate(cumFact= cumsum(fact)) %>% ungroup() %>%
-      mutate(Element = replace(Element, grepl('Financing', Element), 'Financing'),
-             Element = replace(Element, grepl('Investing', Element), 'Investing'),
-             Element = replace(Element, grepl('Operating', Element), 'Operating')) %>%
-      group_by(Date) %>% mutate(cumFact = sum(cumFact)) %>% ungroup() %>%
-      mutate(fact = fact/1000000) %>% mutate(endDate = Date)  %>%
-      arrange(Element, endDate) %>%
-      mutate(endDate = as.character(endDate)) %>% group_by(endDate, Element) %>%
-      filter(fact != 0) %>% ungroup() %>% group_by(endDate, Element) %>%
-      filter(fact == max(fact)) %>% ungroup() %>% distinct()%>% group_by(endDate) %>%
-      mutate(cf = sum(fact)) %>% ungroup()
-   #  
-   #  print(head(df1))
+      mutate(Month = paste0('Q', Month)) %>% group_by(Month) %>% summarise(count=n())
+    if(nrow(df1) < 4) {
+      NULL
+    } else {
     
-    highchart() %>%
-      hc_xAxis(title = list(text = ''), categories = unique(sort(df1$endDate)),
-               #type = 'datetime', dateTimeLabelFormats = list(month = "%b", year = "%y"),
-               labels = list(style = list(fontSize = '12px', fontWeight = 'bold')))%>%
-      hc_yAxis(title = list(text = '<b>US$Millions</b>', style = list(fontSize = '16px', fontWeight = 'bold')),
-               labels = list(style = list(fontSize = '12px', fontWeight = 'bold'))) %>%
-      hc_add_series(data = df1, "column", hcaes(x = endDate, y = fact, group = Element)) %>%
-      hc_add_series(data = df1 %>% filter(Element ==Element[1]), 'spline', 
-                    hcaes(x=endDate, y =cf), name = 'Cash Flow') %>%
-      hc_subtitle(text = "Data Source: SEC XBRL",
-                  align = 'left') %>%
-      hc_caption(text = "Powered by Highcharts") %>%
-      hc_colors(cols) %>%
-      hc_plotOptions(
-        series = list(
-          showInLegend = TRUE,
-          pointFormat = "{point.y}"
-        ),
-        column = list(
-          colorByPoint = FALSE
-        ))  #%>% 
-     # hc_xAxis(, dateTimeLabelFormats = list(day = '%d of %b')) %>%
-    
+      df1 <- tables() %>% filter(!is.na(arcrole)) %>% filter(grepl('us-gaap', Element)) %>% 
+        filter(grepl('OperatingActi', Element)|
+                 grepl('InvestingAct', Element)|
+                 grepl('FinancingAct', Element)) %>%
+        mutate(Year = as.integer(substr(PERIOD, 3, 7))) %>% filter(Period %in% c(3,6,9,12)) %>%
+        group_by(endDate, Period, Element) %>% filter(Year == max(Year)) %>% ungroup() %>%
+        arrange(endDate, PERIOD) %>% mutate(Month = Period) %>% group_by(endDate) %>%
+        filter(Period == max(Period)) %>% ungroup() %>%
+        arrange(Element, endDate) %>% mutate(Year = year(endDate)) %>%
+        mutate(Month = paste0('Q', Month)) %>%
+        spread(Month, fact) %>% arrange(Element, Year) %>% group_by(Year, Element) %>%
+        mutate(Q12 = mean(Q12, na.rm=TRUE),
+               Q9 = mean(Q9, na.rm=TRUE),
+               Q6 = mean(Q6, na.rm=TRUE),
+               Q3=mean(Q3, na.rm=TRUE)) %>%
+        ungroup() %>% mutate(Q12 = replace(Q12, is.nan(Q12), 0),
+                             Q9 = replace(Q9, is.nan(Q9), 0),
+                             Q6 = replace(Q6, is.nan(Q6), 0),
+                             Q3 = replace(Q3, is.nan(Q3), 0)) %>%
+        filter(!duplicated(paste0(Q3, Q6, Q9, Q12))) %>% #subset(select = -c(PERIOD)) %>%
+        select(Element, PERIOD,  Year, Q3, Q6, Q9, Q12) %>% group_by(Element, Year) %>%
+        mutate(Q12 = Q12-Q9, Q9 = Q9-Q6, Q6 = Q6-Q3) %>% ungroup() %>%
+        gather(Month, fact, -c(Element, Year, PERIOD)) %>% mutate(Month = as.integer(gsub('Q', '', Month))) %>%
+        arrange(Element, Month, Year) %>% mutate(Date = paste0(Month,'/',days_in_month(Month),'/',Year)) %>%
+        select(Date, Element, PERIOD, fact) %>%
+        mutate(Quarter = as.integer(substr(PERIOD, 2, 2)), Year = as.integer(substr(PERIOD, 3, 7))) %>%
+        mutate(maxDate = paste0(Quarter*3,'/', days_in_month(Quarter*3), '/', Year)) %>%
+        mutate(maxDate = as.POSIXct(maxDate, format = '%m/%d/%Y'), Date = as.POSIXct(Date, format = '%m/%d/%Y')) %>%
+        mutate(maxDate = max(maxDate)) %>%
+        filter(Date <= maxDate) %>% select(Date, Element, fact) %>%
+        group_by(Date) %>% filter(sum(fact) != 0) %>% ungroup() %>%
+        distinct() %>%
+        mutate(Date = as.POSIXct(Date, format = '%m/%d/%Y')) %>% arrange(Element, Date) %>%
+        group_by(Element) %>% mutate(cumFact= cumsum(fact)) %>% ungroup() %>%
+        mutate(Element = replace(Element, grepl('Financing', Element), 'Financing'),
+               Element = replace(Element, grepl('Investing', Element), 'Investing'),
+               Element = replace(Element, grepl('Operating', Element), 'Operating')) %>%
+        group_by(Date) %>% mutate(cumFact = sum(cumFact)) %>% ungroup() %>%
+        mutate(fact = fact/1000000) %>% mutate(endDate = Date)  %>%
+        arrange(Element, endDate) %>%
+        mutate(endDate = as.character(endDate)) %>% group_by(endDate, Element) %>%
+        filter(fact != 0) %>% ungroup() %>% group_by(endDate, Element) %>%
+        filter(fact == max(fact)) %>% ungroup() %>% distinct()%>% group_by(endDate) %>%
+        mutate(cf = sum(fact)) %>% ungroup()
+     #  
+     #  print(head(df1))
+      
+      highchart() %>%
+        hc_xAxis(title = list(text = ''), categories = unique(sort(df1$endDate)),
+                 #type = 'datetime', dateTimeLabelFormats = list(month = "%b", year = "%y"),
+                 labels = list(style = list(fontSize = '12px', fontWeight = 'bold')))%>%
+        hc_yAxis(title = list(text = '<b>US$Millions</b>', style = list(fontSize = '16px', fontWeight = 'bold')),
+                 labels = list(style = list(fontSize = '12px', fontWeight = 'bold'))) %>%
+        hc_add_series(data = df1, "column", hcaes(x = endDate, y = fact, group = Element)) %>%
+        hc_add_series(data = df1 %>% filter(Element ==Element[1]), 'spline', 
+                      hcaes(x=endDate, y =cf), name = 'Cash Flow') %>%
+        hc_subtitle(text = "Data Source: SEC XBRL",
+                    align = 'left') %>%
+        hc_caption(text = "Powered by Highcharts") %>%
+        hc_colors(cols) %>%
+        hc_plotOptions(
+          series = list(
+            showInLegend = TRUE,
+            pointFormat = "{point.y}"
+          ),
+          column = list(
+            colorByPoint = FALSE
+          ))  #%>% 
+       # hc_xAxis(, dateTimeLabelFormats = list(day = '%d of %b')) %>%
+    }
   })
   
   
