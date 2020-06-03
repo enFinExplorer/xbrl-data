@@ -27,6 +27,99 @@ url1 <- function(x) {
                                     rvest::html_attr('href')))[1])
 }
 
+compScrape <- function(comp.ticker) tryCatch ({
+  url1 <- function(x) {
+    paste0('https://www.sec.gov', ((xml2::read_html(x) %>%
+                                      rvest::html_nodes('table') %>% .[1] %>%
+                                      rvest::html_nodes('a') %>% 
+                                      rvest::html_attr('href')))[1])
+  }
+  
+  filingList <- data.frame(edgarWebR::company_details(comp.ticker, type = 'DEF 14A', count = 1))# %>% filter(!grepl('A', filings.type))
+  if(comp.ticker == 'CHK'){
+    filingList <- filingList[2:nrow(filingList),]
+  }
+  #accssionNo <- filingList$filings.accession_number[1]
+  #checkNo <- filingList$information.cik[1]
+  #filingList <- rbind(filingList, filingList1) %>% arrange(desc(filings.filing_date))
+  #compInfo <- finreportr::CompanyInfo(comp.ticker)
+  #filingList$Company <- compInfo$company
+  #rm(filingList1)
+  
+  filingList$url1 <- lapply(filingList$filings.href,  url1)
+  filingList$url1 <- gsub('/ix?doc=', '', filingList$url1, fixed=TRUE)
+  #values$check <- filingList
+  filingList <- filingList[,c('filings.filing_date', 'filings.type', 'url1')] %>% arrange(desc(filings.filing_date))
+  #filingList$quarter <- lubridate::quarter(filingList$filings.filing_date) - 1
+  #filingList$year <- lubridate::year(filingList$filings.filing_date)
+  #filingList$quarter[filingList$quarter == 0] <- 4
+  #filingList$year[filingList$quarter == 4] <- filingList$year[filingList$quarter == 4]-1
+  #filingList$period <- paste0('Q', filingList$quarter, filingList$year)
+  #updateSelectizeInput(session, 'Filing', choices = filingList$period)
+  names(filingList)[1:3] <- c('filingDate', 'type', 'url1')
+  #filingList <- filingList[,c('Company', 'period', 'filingDate', 'type', 'url1')]
+  filingList <- data.frame(lapply(filingList, function(x){
+    gsub("iXBRL", "", x)
+  }))
+  filingList <- data.frame(lapply(filingList, function(x){
+    gsub("\\s+", "", x)
+  }))
+  
+  filingList$type <- paste0('<a href="', filingList$url1, '" target="_blank">', filingList$type,'</a>')
+  #values$filingList <- filingList
+  #filingList <- filingList[,c('Company', 'period', 'filingDate', 'type', 'url1')]
+  names(filingList) <- c('Filing Date', 'Report', 'URL')
+  filingList <- as.data.frame(filingList)
+  
+  
+  nodes <- xml2::read_html(filingList$URL[1]) %>% html_nodes('table')
+  
+  
+  
+  string1 <-  'Principal'
+  strMatch <- string1
+  
+  signal <- FALSE
+  my_tables <- list()
+  #my_length <- list()
+  j <- 0
+  for (i in 1:length(nodes)) {
+    signal <- nodes[i] %>% html_text() %>% str_detect(strMatch)
+    # if title signal previously set and this is a table tag
+    if (signal & html_name(nodes[i]) == "table") {
+      cat("Match..\n")
+      print(i)
+      # get the table (data frame)
+      list1 <- nodes[i]# %>% html_nodes('tr')
+      this_table <- list1 %>% paste(collapse='\n')
+      this_table <- data.frame(list1 = this_table)
+      list1 <- nodes[i] %>% html_nodes('tr')
+      this_table$rows <- length(list1)
+      
+      j = j + 1
+      my_tables[[j]] <- this_table
+      
+      
+      
+      # and reset the signal so we search for the next one
+      signal <- FALSE
+    }
+    
+    # if the signal is clear look for matching title
+    if (!signal) {
+      signal <- nodes[i] %>% html_text() %>% str_detect(strMatch)
+    }
+  }
+  
+  my_tables <- my_tables[[length(my_tables)]]
+  return(my_tables)
+},
+error = function(e) {
+  e
+  NULL
+})
+
+
 stockListX <- rbind(tidyquant::tq_exchange('AMEX'),tidyquant::tq_exchange('NASDAQ'),tidyquant::tq_exchange('NYSE')) %>%
   filter(!duplicated(symbol)) %>% filter(!is.na(sector)) %>% filter(!is.na(industry)) %>% filter(!is.na(market.cap)) %>%
   filter(!duplicated(company))
@@ -60,23 +153,28 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
         ),
         tablerNavMenuItem(
           tabName = "dashboard",
-          icon = "info",
+          icon = "aperture",
           "Company Info"
         ),
         tablerNavMenuItem(
           tabName = "comps",
-          icon = "box",
+          icon = "award",
           "Market Comps"
         ),
         tablerNavMenuItem(
           tabName = "statements",
-          icon = "box",
+          icon = "file-text",
           "Financial Statements"
         ),
         tablerNavMenuItem(
           tabName = "graphs",
-          icon = "box",
+          icon = "trending-up",
           "Graphs"
+        ),
+        tablerNavMenuItem(
+          tabName = "compensation",
+          icon = "dollar-sign",
+          "Executive Compensation"
         ),
         tablerNavMenuItem(
           tabName = "packages",
@@ -464,6 +562,14 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
               
             )
           ),
+        tablerTabItem(
+          tabName = 'compensation',
+          fluidRow(
+            h4('Executive Compensation Tables'),
+              htmlOutput('plot')
+            
+          )
+        ),
           tablerTabItem(
             tabName = "packages",
             h3('Packages Used:'),
@@ -1187,6 +1293,13 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     DT::datatable(df1, escape = FALSE, rownames = FALSE, options = list(paging = FALSE, searching = FALSE))
   })
   
+  output$plot <- renderUI({
+    comp.ticker <- stockInfo()$symbol
+    #comp.ticker <- comp.ticker$ticker[1]
+    df <- compScrape(comp.ticker)
+    
+    HTML(df$list1)
+  })
   
   }
 
