@@ -888,7 +888,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       filter(Element == 'us-gaap_NetIncomeLoss'|
                Element == "us-gaap_NetIncomeLossAvailableToCommonStockholdersBasic") %>%
       mutate(Year = as.integer(substr(PERIOD, 3, 7))) %>% filter(Period %in% c(12)) %>%
-      group_by(endDate, Period, Element) %>% filter(Year == max(Year)) %>% ungroup() %>% distinct() %>%
+      group_by(endDate, Period, Element) %>% filter(Year == min(Year)) %>% ungroup() %>% distinct() %>%
       group_by(endDate) %>% filter(Period == max(Period)) %>% ungroup() %>% arrange(endDate) %>%
       select(Element, endDate, fact) %>% mutate(fact = round(fact/1000000,2)) %>%
       group_by(endDate) %>% mutate(count = n()) %>% ungroup() %>% group_by(endDate) %>%
@@ -985,7 +985,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                grepl('InvestingAct', Element)|
                grepl('FinancingAct', Element)) %>%
       mutate(Year = as.integer(substr(PERIOD, 3, 7))) %>% filter(Period %in% c(3,6,9,12)) %>%
-      group_by(endDate, Period, Element) %>% filter(Year == max(Year)) %>% ungroup() %>%
+      group_by(endDate, Period, Element) %>% filter(Year == min(Year)) %>% ungroup() %>%
       arrange(endDate, PERIOD) %>% mutate(Month = Period) %>% group_by(endDate) %>%
       filter(Period == max(Period)) %>% ungroup() %>%
       arrange(Element, endDate) %>% mutate(Year = year(endDate)) %>%
@@ -999,7 +999,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                  grepl('InvestingAct', Element)|
                  grepl('FinancingAct', Element)) %>%
         mutate(Year = as.integer(substr(PERIOD, 3, 7))) %>% filter(Period %in% c(3,6,9,12)) %>%
-        group_by(endDate, Period, Element) %>% filter(Year == max(Year)) %>% ungroup() %>%
+        group_by(endDate, Period, Element) %>% filter(Year == min(Year)) %>% ungroup() %>%
         arrange(endDate, PERIOD) %>% mutate(Month = Period) %>% group_by(endDate) %>%
         filter(Period == max(Period)) %>% ungroup() %>%
         arrange(Element, endDate) %>% mutate(Year = year(endDate)) %>%
@@ -1082,7 +1082,9 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       distinct() %>% mutate(fact = fact/1000000) %>%
       select(Year = Label, Maturing.Debt = fact, PERIOD)
     
-      
+      if(nrow(df1) == 0){
+        NULL
+      } else {
     highchart() %>%
       hc_add_series(data = df1, "column", hcaes(x = Year, y = Maturing.Debt), name = 'Maturing Debt') %>%
       hc_subtitle(text = paste0('As of: ', df1$PERIOD[1]),
@@ -1103,7 +1105,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                labels = list(style = list(fontSize = '12px', fontWeight = 'bold')))
     
     
-    
+      }
   })
   
   observe({
