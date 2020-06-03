@@ -17,6 +17,8 @@ library(stringr)
 library(glue)
 library(edgarWebR)
 library(finreportr)
+library(xml2)
+library(rvest)
 
 options(stringsAsFactors = FALSE)
 
@@ -137,6 +139,16 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     navbar = tablerDashNav(
       id = 'xbrl',
       src = "logo.png",
+      pickerInput(
+        inputId = "ticker1",
+        label = "Ticker", 
+        choices = sort(unique(stockList$symbol)),
+        options = list(
+          `live-search` = TRUE,
+          `actions-box` = TRUE),
+        multiple = TRUE,
+        selected = sort(unique(stockList$symbol))
+      ),
       pickerInput(
         inputId = "ticker",
         label = "Company", 
@@ -724,10 +736,18 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       
     })
     
+    observe({
+      df1 <- stockList %>% filter(symbol %in% input$ticker1)
+      updatePickerInput(session, 'ticker', choices = sort(unique(df1$company)))
+    })
     #shinyjs::show('actions')
-    stockInfo <- reactive(
-      
-      (stockList %>% filter(company%in% input$ticker))
+    stockInfo <- reactive({
+      if(is.null(input$ticker1)||input$ticker1 == ''||is.null(input$ticker)||input$ticker == ''){
+        (stockList %>% filter(company%in% 'Apple Inc.'))
+      } else {
+        (stockList %>% filter(company%in% input$ticker))
+      }
+    }
       
     
     )
@@ -752,7 +772,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
      })
     
     observe({
-      if(is.null(input$ticker)||input$ticker == ''||is.null(values$x)){
+      if(is.null(input$ticker)||input$ticker == ''||is.null(values$x)||is.null(input$ticker1)||input$ticker1==''){
         values$stock <- NULL
       } else {
         stock <- NULL
@@ -773,7 +793,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     })
     
     observe({
-      if(is.null(values$x)){
+      if(is.null(input$ticker)||input$ticker == ''||is.null(values$x)||is.null(input$ticker1)||input$ticker1==''){
         NULL
       } else {
       output$ticker1 <- renderText(paste0('<b>Ticker: </b>', stockInfo()$symbol))
@@ -788,7 +808,10 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     
     output$stonks <- renderHighchart({
       #print(input$dateRange)
-      if(is.null(values$stock)){
+      if(is.null(values$stock)||
+         is.null(input$ticker)||input$ticker == ''||
+         is.null(values$x)||is.null(input$ticker1)||
+         input$ticker1==''){
         NULL
       } else {
       #print(head(tables()))
@@ -806,10 +829,15 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     })
     
     tables <- reactive({
+      if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
+        readRDS('./data/AAPL.rds') %>%
+          mutate(Period = replace(Period, is.na(Period), 0))
+      } else {
       txt1 <- glue::glue('./data/{stockInfo()$symbol}.rds')
       readRDS(txt1) %>% 
         #filter(ticker %in% stockInfo()$symbol) %>%
         mutate(Period = replace(Period, is.na(Period), 0))
+      }
       })
     
     observe(updateSelectizeInput(session, 'period', choices = unique(tables()$PERIOD)))
@@ -838,7 +866,9 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
        is.null(input$table)||input$table == ''||
        is.null(input$type)||input$type == ''||
        is.null(input$endDate)||input$endDate == ''||
-       is.null(tables1())||nrow(tables1()) == 0){
+       is.null(tables1())||nrow(tables1()) == 0||
+       is.null(input$ticker)||input$ticker == ''||
+       is.null(input$ticker1)||input$ticker1==''){
       NULL
     } else {
       DT::datatable(tables1() %>% arrange(Order) %>% select(Order, Label, Value = fact, Units) %>%
@@ -872,7 +902,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
   onclick('downloadData1', shinyjs::hide('calculate'))
   
   output$mktCap <- renderHighchart({
-    if(is.null(values$x)){
+    if(is.null(input$ticker)||input$ticker == ''||is.null(values$x)||is.null(input$ticker1)||input$ticker1==''){
       NULL
     } else {
     df <- comps() %>% select(company, market.cap) %>% 
@@ -899,7 +929,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
   )
   
   output$closest <- renderHighchart({
-    if(is.null(values$x)){
+    if(is.null(input$ticker)||input$ticker == ''||is.null(values$x)||is.null(input$ticker1)||input$ticker1==''){
       NULL
     } else {
     df <- comps() %>% select(symbol, market.cap) %>%
@@ -945,7 +975,9 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
   )
   
   output$currents <- renderHighchart({
-
+    if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
+      NULL
+    } else {
     df1 <- tables() %>% filter(grepl('us-gaap_AssetsCurrent', Element)|grepl('us-gaap_LiabilitiesCurrent', Element)) %>%
       filter(!duplicated(paste0(fact, endDate, Element))) %>% 
       mutate(quarter = as.numeric(substr(PERIOD, 2, 2))*3, year = as.numeric(substr(PERIOD, 3, 7)) ) %>%
@@ -984,11 +1016,14 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
         column = list(
           colorByPoint = FALSE
         ))  #%>% 
+    }
     
   })
   
   output$netIncome <- renderHighchart({
-    
+    if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
+      NULL
+    } else {
     
     df1 <- tables() %>% filter(!is.na(arcrole)) %>%
       filter(Element == 'us-gaap_NetIncomeLoss'|
@@ -1025,10 +1060,13 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
           colorByPoint = FALSE
         ))  #%>% 
     }
+    }
   })
   
   output$debt <- renderHighchart({
-    
+    if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
+      NULL
+    } else {
     
       df1 <- tables() %>% filter(Type == 'Statement') %>%
         filter(grepl('us-gaap_LongTermDebtCurrent', Element)|
@@ -1068,11 +1106,14 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
           column = list(
             colorByPoint = FALSE
           ))  #%>% 
+    }
     
   })
   
   output$cf <- renderHighchart({
-   
+    if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
+      NULL
+    } else {
     # df1 <- tables() %>% filter(Type == 'Statement') %>% filter(!is.na(arcrole)) %>%
     #   filter(Period == 12) %>%
     #   filter(grepl('us-gaap_NetCashProvidedByUsedInOperatingActivities', Element)|
@@ -1173,11 +1214,14 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
           ))  #%>% 
        # hc_xAxis(, dateTimeLabelFormats = list(day = '%d of %b')) %>%
     }
+    }
   })
   
   
   output$maturity <- renderHighchart({
-   
+    if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
+      NULL
+    } else {
     df1 <- tables() %>% filter(fact > 1) %>%
       filter(grepl('2021', Label)|
                grepl('2022', Label)|
@@ -1215,12 +1259,14 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     
     
       }
+    }
   })
   
   observe({
-    if(is.null(values$x)){
+    if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''||is.null(values$x)){
       NULL
     } else {
+
     operatorSelect <- stockInfo()$symbol
     #print(operatorSelect)
     filingList <- data.frame(edgarWebR::company_details(operatorSelect, type = '10-K', count = 5)) %>% filter(!grepl('A', filings.type))
@@ -1263,6 +1309,9 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
   })
   
   output$recent <- DT::renderDataTable({
+    if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
+      NULL
+    } else {
     df1 <- tables() %>% group_by(endDate) %>% filter(n() > 10) %>% ungroup() %>%
       filter(endDate == max(endDate)) %>% filter(!is.na(arcrole)) %>%
       mutate(fact = round(fact/1000000,2)) %>%
@@ -1270,6 +1319,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                                                               Value = fact, Period = PERIOD) 
     names(df1)[ncol(df1)] <- 'Filing Period'
     DT::datatable(df1, escape = FALSE, rownames = FALSE, options = list(paging = FALSE, searching = FALSE))
+    }
   })
   
   output$filingList <- DT::renderDataTable({
@@ -1283,6 +1333,9 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
   })
   
   output$debtTable <- DT::renderDataTable({
+    if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
+      NULL
+    } else {
     df1 <- tables() %>% #filter(PERIOD == 'Q42019')  %>%
       filter(fact > 1) %>% filter(grepl('ue', Element)) %>%
       filter(grepl('ote', Element)) %>% group_by(endDate) %>% filter(n() > 2) %>% ungroup() %>%
@@ -1291,14 +1344,19 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     df1 <- tables() %>% filter(Table %in% df1$Table) %>% filter(PERIOD %in% df1$PERIOD) %>%
       filter(fact > 1) %>% select(Label, endDate, fact, PERIOD) %>% spread(endDate, fact)
     DT::datatable(df1, escape = FALSE, rownames = FALSE, options = list(paging = FALSE, searching = FALSE))
+    }
   })
   
   output$plot <- renderUI({
+    if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
+      NULL
+    } else {
     comp.ticker <- stockInfo()$symbol
     #comp.ticker <- comp.ticker$ticker[1]
     df <- compScrape(comp.ticker)
     
     HTML(df$list1)
+    }
   })
   
   }
