@@ -896,6 +896,9 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       filter(!is.na(Element)) %>% subset(select = -c(count)) %>% distinct()
     
     #print(head(df1))
+    if(nrow(df1) == 0){
+      NULL
+    } else {
     
     highchart() %>%
       hc_xAxis(title = list(text = ''), categories = unique(sort(df1$endDate)),
@@ -915,7 +918,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
         column = list(
           colorByPoint = FALSE
         ))  #%>% 
-    
+    }
   })
   
   output$debt <- renderHighchart({
