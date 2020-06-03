@@ -986,11 +986,19 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       group_by(Element, endDate) %>% summarise(fact = mean(fact)) %>% arrange(Element, endDate) %>%
       mutate(fact = round(fact/1000000, 0)) %>% mutate(endDate = as.POSIXct(endDate, format = '%Y-%m-%d')) %>%
       mutate(endDate = as.character(as.Date(endDate))) %>% group_by(endDate) %>%
+      spread(Element, fact)
+    df1[is.na(df1)] <- 0
+    df1 <- df1 %>% gather(Element, fact, -endDate) %>%
       mutate(cR = fact[grepl('us-gaap_AssetsCurrent', Element)]/fact[grepl('us-gaap_LiabilitiesCurrent', Element)]) %>%
       mutate(Element = replace(Element, grepl('us-gaap_AssetsCurrent', Element), 'Current Assets'),
              Element = replace(Element, grepl('us-gaap_LiabilitiesCurrent', Element), 'Current Liabilities'),
              Element = replace(Element, grepl('cR', Element), 'Current Ratio'))
+    df1$cR[is.na(df1$cR)] <- 0
+    df1$cR[is.infinite(df1$cR)] <- 0
     
+    if(nrow(df1) == 0){
+      NULL
+    } else {
     #print(head(df1))
     
     highchart() %>%
@@ -1016,6 +1024,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
         column = list(
           colorByPoint = FALSE
         ))  #%>% 
+    }
     }
     
   })
