@@ -1,5 +1,6 @@
 library(shiny)
 library(tablerDash)
+#library(feedeR)
 #library(shinydashboard)
 #library(shinydashboardPlus)
 library(shinyWidgets)
@@ -19,6 +20,7 @@ library(edgarWebR)
 library(finreportr)
 library(xml2)
 library(rvest)
+
 
 options(stringsAsFactors = FALSE)
 
@@ -1321,13 +1323,16 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
       NULL
     } else {
-    df1 <- tables() %>% group_by(endDate) %>% filter(n() > 10) %>% ungroup() %>%
-      filter(endDate == max(endDate)) %>% filter(!is.na(arcrole)) %>%
+    df1 <- tables() %>% filter(!is.na(arcrole)) %>%
+      group_by(endDate) %>%
+      filter(n() > 8) %>% ungroup() %>%
+      filter(endDate == max(endDate)) %>%
       mutate(fact = round(fact/1000000,2)) %>%
-      filter(!duplicated(paste0(Element, Period))) %>% select(Table, Label, Date = endDate, Months = Period,
-                                                              Value = fact, Period = PERIOD) 
+      filter(!duplicated(paste0(Element,Period))) %>%
+      select(Table, Label, Date = endDate, Months = Period,
+             Value = fact, Period = PERIOD)
     names(df1)[ncol(df1)] <- 'Filing Period'
-    DT::datatable(df1, escape = FALSE, rownames = FALSE, options = list(paging = FALSE, searching = FALSE))
+    DT::datatable(df1, escape = FALSE, rownames = FALSE,  options = list(paging = FALSE, searching = FALSE))
     }
   })
   
@@ -1351,7 +1356,10 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       filter(endDate == max(endDate)) %>% mutate(Year = as.integer(substr(PERIOD, 3, 7))) %>%
       filter(Year == max(Year))
     df1 <- tables() %>% filter(Table %in% df1$Table) %>% filter(PERIOD %in% df1$PERIOD) %>%
-      filter(fact > 1) %>% select(Label, endDate, fact, PERIOD) %>% spread(endDate, fact)
+      filter(fact > 1) %>% select(Label, endDate, fact, PERIOD) %>% distinct() %>% 
+      group_by(endDate, Label) %>% filter(fact == max(as.numeric(fact))) %>%
+      ungroup() %>% filter(!duplicated(paste0(Label, endDate, fact))) %>%
+      spread(endDate, fact)
     DT::datatable(df1, escape = FALSE, rownames = FALSE, options = list(paging = FALSE, searching = FALSE))
     }
   })
