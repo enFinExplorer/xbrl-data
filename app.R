@@ -673,6 +673,13 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                      subtitle = "Seward Lee",
                      background = "",
                      src = "finreportr.PNG"
+                   ),
+                   tablerProfileCard(
+                     width = 12,
+                     title = "tidyRSS",
+                     subtitle = "Robert Myles",
+                     background = "",
+                     src = "tidyRSS.png"
                    )
                    
                    )
