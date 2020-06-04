@@ -20,7 +20,7 @@ library(edgarWebR)
 library(finreportr)
 library(xml2)
 library(rvest)
-
+library(tidyRSS)
 
 options(stringsAsFactors = FALSE)
 
@@ -297,13 +297,13 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
             ),
             column(width = 7,
                    tablerCard(
-                     title = 'Recent Data',
+                     title = 'Recent News',
                      closable = FALSE,
                      width = 12,
                      status = 'info',
                    #solidHeader = TRUE,
                      collapsible = TRUE,
-                  h4('Values in US$Millions'),
+                  #h4('Values in US$Millions'),
                   DT::dataTableOutput('recent')
                    )
             ),
@@ -1332,6 +1332,12 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       select(Table, Label, Date = endDate, Months = Period,
              Value = fact, Period = PERIOD)
     names(df1)[ncol(df1)] <- 'Filing Period'
+    df1 <- tidyfeed(glue::glue("https://news.google.com/rss/search?q=${stockInfo()$symbol}"))
+    df1 <- df1 %>% arrange(desc(feed_pub_date))
+    df1 <- df1[1:10,]
+    df1$url1 <- paste0('<a href=\"', df1$feed_link, '\" target=\"_blank\">', df1$item_title, '</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">', df1$feed_description, '</font>')
+    df1 <- df1 %>% select(date = feed_pub_date, url1) %>% mutate(date = as.Date(date))
+    names(df1) <- c('', '')
     DT::datatable(df1, escape = FALSE, rownames = FALSE,  options = list(paging = FALSE, searching = FALSE))
     }
   })
