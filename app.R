@@ -23,7 +23,7 @@ library(rvest)
 library(tidyRSS)
 
 options(stringsAsFactors = FALSE)
-
+demo_production_client_id <- 'AZc_u_07_6NcDd9hyuxTgXVgMkIjCNkv2yaNIwPz8lbO_ppTW0vixDDe4sVx649nnkrouyG-4Y3Bk4lM'
 url1 <- function(x) {
   paste0('https://www.sec.gov', ((xml2::read_html(x) %>%
                                     rvest::html_nodes('table') %>% .[1] %>%
@@ -212,7 +212,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
         tablerTabItem(
           tabName = "home",
           fluidRow(
-            column(width = 6,
+            column(width = 12,
           tablerBlogCard(
             title = img(src = 'logo.png'),
             author = "",
@@ -236,8 +236,8 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
               href="https://twitter.com/DataXBRL", 
               tags$img(src="twitter.png", 
                        title="Twitter",
-                       width="10%",
-                       height="10%"), 
+                       width="5%",
+                       height="5%"), 
               target="_blank"
             ),
             h6('Source Code on Github:'),
@@ -252,10 +252,6 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                            icon = icon("envelope", lib = "font-awesome")),
               href="mailto:xbrl-data@xbrl-data.com")
           )
-          ),
-          column(width = 6,
-          p('Note:  xbrl-Data is in Beta so the Paypal link is still in Sandbox and will charge $0.00 for data access.
-            Please let me know during this period how we can improve the experience.')
           )
           )
         ),
@@ -385,10 +381,11 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                                tags$a(id = 'Calculate',
                                       tags$script("paypal.Button.render({
                                         // Configure environment
-                                        env: 'sandbox',
+                                        env: 'production',
                                         client: {
                                         sandbox: 'AUzCJ8LZWpfr-5q8RbpAbzgbnviGF01LygUugclYSUENDcN2SeN8n_hRjq8B7nFaEor1z4yWOlcgtbd_',
-                                        production: 'demo_production_client_id'
+                                        production: 'AUrAmAun5ur3lSIWKmF4J_wfFQAFjvobTAfznVFLiBstiRO37wVWikHsLBTRpbaRRiilftsb72iIH_vG',
+                                        id: 'AUrAmAun5ur3lSIWKmF4J_wfFQAFjvobTAfznVFLiBstiRO37wVWikHsLBTRpbaRRiilftsb72iIH_vG'
                                         },
                                         // Customize button (optional)
                                         locale: 'en_US',
@@ -402,7 +399,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                                         return actions.payment.create({
                                         transactions: [{
                                         amount: {
-                                        total: '0.01',
+                                        total: '2.00',
                                         currency: 'USD'
                                         }
                                         }]
