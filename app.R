@@ -1051,12 +1051,15 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       filter(Element == 'us-gaap_NetIncomeLoss'|Element == 'us-gaap_ProfitLoss') %>%
       filter(!is.na(arcrole)) %>% filter(Period == 12) %>%
       filter(!duplicated(paste0(endDate, fact))) %>%
-      mutate(Year = as.integer(substr(PERIOD, 3, 7))) %>%
+      mutate(Year = as.integer(substr(PERIOD, 3, 7)), Quarter = as.integer(substr(PERIOD, 2, 2))) %>%
       group_by(endDate, Element) %>% filter(Year == min(Year)) %>% ungroup() %>%
+      group_by(endDate, Element) %>% filter(Quarter == max(Quarter)) %>% ungroup() %>%
       select(endDate,Element,Year, fact) %>% group_by(endDate) %>% filter(Year == min(Year)) %>%
       ungroup() %>% group_by(endDate) %>% mutate(count = n()) %>% ungroup() %>%
       mutate(Element = replace(Element, count == 2 & Element == 'us-gaap_ProfitLoss', NA)) %>%
-      filter(!is.na(Element)) %>% select(endDate, fact)
+      filter(!is.na(Element)) %>% group_by(Year, Element) %>% 
+      filter(endDate == max(endDate)) %>% ungroup() %>% select(endDate, fact) %>%
+      arrange(endDate)
     
     #print(head(df1))
     if(nrow(df1) == 0){
