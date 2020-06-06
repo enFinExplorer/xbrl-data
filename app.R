@@ -282,6 +282,10 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                      #)
             ),
             column(width = 8,
+                   
+                   highchartOutput("bsData")
+            ),
+            column(width = 12,
                    #tablerCard(
                    #  title = "Candlestick Chart", 
                    #  closable = FALSE, 
@@ -294,29 +298,19 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                    highcharter::highchartOutput('stonks'),
                    h6('Source: Quantmod/Yahoo Finance')
                    #)
-            ),
-            column(width = 7,
-                   tablerCard(
-                     title = 'Recent News',
-                     closable = FALSE,
-                     width = 12,
-                     status = 'info',
-                   #solidHeader = TRUE,
-                     collapsible = TRUE,
-                  #h4('Values in US$Millions'),
-                  DT::dataTableOutput('recent')
-                   )
-            ),
-            column(width = 5,
-                   tablerCard(
-                     title = 'Debt Summary',
-                     closable = FALSE,
-                     width = 12,
-                     status = 'info',
-                     #h4('Recent Filings'),
-                     collapsible = TRUE,
-                     DT::dataTableOutput("debtTable")) 
-            )
+            )#,
+            # column(width = 7,
+            #        tablerCard(
+            #          title = 'Recent News',
+            #          closable = FALSE,
+            #          width = 12,
+            #          status = 'info',
+            #        #solidHeader = TRUE,
+            #          collapsible = TRUE,
+            #       #h4('Values in US$Millions'),
+            #       DT::dataTableOutput('recent')
+            #        )
+            # )
             )
           ),
         tablerTabItem(
@@ -1043,16 +1037,16 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
       NULL
     } else {
     
-    df1 <- tables() %>% filter(!is.na(arcrole)) %>%
-      filter(Element == 'us-gaap_NetIncomeLoss'|
-               Element == "us-gaap_NetIncomeLossAvailableToCommonStockholdersBasic") %>%
-      mutate(Year = as.integer(substr(PERIOD, 3, 7))) %>% filter(Period %in% c(12)) %>%
-      group_by(endDate, Period, Element) %>% filter(Year == min(Year)) %>% ungroup() %>% distinct() %>%
-      group_by(endDate) %>% filter(Period == max(Period)) %>% ungroup() %>% arrange(endDate) %>%
-      select(Element, endDate, fact) %>% mutate(fact = round(fact/1000000,2)) %>%
-      group_by(endDate) %>% mutate(count = n()) %>% ungroup() %>% group_by(endDate) %>%
-      mutate(Element = replace(Element, count > 1 & Element == "us-gaap_NetIncomeLossAvailableToCommonStockholdersBasic", NA)) %>%
-      filter(!is.na(Element)) %>% subset(select = -c(count)) %>% distinct()
+    df1 <- tables() %>% 
+      filter(Element == 'us-gaap_NetIncomeLoss'|Element == 'us-gaap_ProfitLoss') %>%
+      filter(!is.na(arcrole)) %>% filter(Period == 12) %>%
+      filter(!duplicated(paste0(endDate, fact))) %>%
+      mutate(Year = as.integer(substr(PERIOD, 3, 7))) %>%
+      group_by(endDate, Element) %>% filter(Year == min(Year)) %>% ungroup() %>%
+      select(endDate,Element,Year, fact) %>% group_by(endDate) %>% filter(Year == min(Year)) %>%
+      ungroup() %>% group_by(endDate) %>% mutate(count = n()) %>% ungroup() %>%
+      mutate(Element = replace(Element, count == 2 & Element == 'us-gaap_ProfitLoss', NA)) %>%
+      filter(!is.na(Element)) %>% select(endDate, fact)
     
     #print(head(df1))
     if(nrow(df1) == 0){
@@ -1064,7 +1058,7 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                labels = list(style = list(fontSize = '12px', fontWeight = 'bold')))%>%
       hc_yAxis(title = list(text = '<b>US$Millions</b>', style = list(fontSize = '16px', fontWeight = 'bold')),
                labels = list(style = list(fontSize = '12px', fontWeight = 'bold'))) %>%
-      hc_add_series(data = df1, "column", hcaes(x = endDate, y = fact, group = Element)) %>%
+      hc_add_series(data = df1, "column", hcaes(x = endDate, y = fact), name = 'Net Income') %>%
       hc_subtitle(text = "Data Source: SEC XBRL",
                   align = 'left') %>%
       hc_caption(text = "Powered by Highcharts") %>%
@@ -1312,28 +1306,28 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     }
   })
   
-  output$recent <- DT::renderDataTable({
-    if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
-      NULL
-    } else {
-    df1 <- tables() %>% filter(!is.na(arcrole)) %>%
-      group_by(endDate) %>%
-      filter(n() > 8) %>% ungroup() %>%
-      filter(endDate == max(endDate)) %>%
-      mutate(fact = round(fact/1000000,2)) %>%
-      filter(!duplicated(paste0(Element,Period))) %>%
-      select(Table, Label, Date = endDate, Months = Period,
-             Value = fact, Period = PERIOD)
-    names(df1)[ncol(df1)] <- 'Filing Period'
-    df1 <- tidyfeed(glue::glue("https://news.google.com/rss/search?q=${stockInfo()$symbol}"))
-    df1 <- df1 %>% arrange(desc(feed_pub_date))
-    df1 <- df1[1:10,]
-    df1$url1 <- paste0('<a href=\"', df1$feed_link, '\" target=\"_blank\">', df1$item_title, '</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">', df1$feed_description, '</font>')
-    df1 <- df1 %>% select(date = feed_pub_date, url1) %>% mutate(date = as.Date(date))
-    names(df1) <- c('', '')
-    DT::datatable(df1, escape = FALSE, rownames = FALSE,  options = list(paging = FALSE, searching = FALSE))
-    }
-  })
+  # output$recent <- DT::renderDataTable({
+  #   if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
+  #     NULL
+  #   } else {
+  #   # df1 <- tables() %>% filter(!is.na(arcrole)) %>%
+  #   #   group_by(endDate) %>%
+  #   #   filter(n() > 8) %>% ungroup() %>%
+  #   #   filter(endDate == max(endDate)) %>%
+  #   #   mutate(fact = round(fact/1000000,2)) %>%
+  #   #   filter(!duplicated(paste0(Element,Period))) %>%
+  #   #   select(Table, Label, Date = endDate, Months = Period,
+  #   #          Value = fact, Period = PERIOD)
+  #   #names(df1)[ncol(df1)] <- 'Filing Period'
+  #   df1 <- tidyfeed(glue::glue("https://news.google.com/rss/search?q=${stockInfo()$symbol}"))
+  #   df1 <- df1 %>% arrange(desc(feed_pub_date))
+  #   df1 <- df1[1:10,]
+  #   df1$url1 <- paste0('<a href=\"', df1$feed_link, '\" target=\"_blank\">', df1$item_title, '</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">', df1$feed_description, '</font>')
+  #   df1 <- df1 %>% select(date = feed_pub_date, url1) %>% mutate(date = as.Date(date))
+  #   names(df1) <- c('', '')
+  #   DT::datatable(df1, escape = FALSE, rownames = FALSE,  options = list(paging = FALSE, searching = FALSE))
+  #   }
+  # })
   
   output$filingList <- DT::renderDataTable({
     if(is.null(values$filingList1)){
@@ -1345,21 +1339,42 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     }
   })
   
-  output$debtTable <- DT::renderDataTable({
+  output$bsData <- renderHighchart({
     if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
       NULL
     } else {
-    df1 <- tables() %>% #filter(PERIOD == 'Q42019')  %>%
-      filter(fact > 1) %>% filter(grepl('ue', Element)) %>%
-      filter(grepl('ote', Element)) %>% group_by(endDate) %>% filter(n() > 2) %>% ungroup() %>%
-      filter(endDate == max(endDate)) %>% mutate(Year = as.integer(substr(PERIOD, 3, 7))) %>%
-      filter(Year == max(Year))
-    df1 <- tables() %>% filter(Table %in% df1$Table) %>% filter(PERIOD %in% df1$PERIOD) %>%
-      filter(fact > 1) %>% select(Label, endDate, fact, PERIOD) %>% distinct() %>% 
-      group_by(endDate, Label) %>% filter(fact == max(as.numeric(fact))) %>%
-      ungroup() %>% filter(!duplicated(paste0(Label, endDate, fact))) %>%
-      spread(endDate, fact)
-    DT::datatable(df1, escape = FALSE, rownames = FALSE, options = list(paging = FALSE, searching = FALSE))
+    check1 <- tables() %>% 
+      filter(Element == 'us-gaap_Assets'|Element == 'us-gaap_AssetsCurrent'|
+               Element == 'us-gaap_LiabilitiesCurrent'|
+               Element == 'us-gaap_StockholdersEquity') %>%
+      filter(!is.na(arcrole)) %>% filter(endDate == max(endDate)) %>%
+      filter(!duplicated(Element)) %>% mutate(Element = gsub('us-gaap_', '', Element, fixed=TRUE)) %>%
+      select(Element,endDate, fact) 
+    
+    if(nrow(check1)<4){
+      NULL
+    } else {
+      
+      check1 <- check1 %>% spread(Element, fact) %>%
+        mutate(Liabilities = Assets - StockholdersEquity, AssetsNonCurrent = Assets-AssetsCurrent,
+               LiabilitiesNonCurrent = Liabilities - LiabilitiesCurrent) %>%
+        gather(Component, Value, -endDate) %>% filter(Component != 'Assets') %>% 
+        filter(Component != 'Liabilities') %>% arrange(Component) %>%
+        mutate(Component = replace(Component, Component == 'AssetsCurrent', 'Current Assets'),
+               Component = replace(Component, Component == 'AssetsNonCurrent', 'NonCurrent Assets'),
+               Component = replace(Component, Component == 'LiabilitiesCurrent', 'Current Liabilities'),
+               Component = replace(Component, Component == 'LiabilitiesNonCurrent', 'NonCurrent Liabilities'),
+               Component = replace(Component, Component == 'StockholdersEquity', 'Stockholders Equity')) %>%
+        mutate(Value = round(Value/1000000, 0))
+      
+    highchart() %>%
+      hc_add_series(check1, type = 'pie', hcaes(x = Component, y = Value, name = Component), name = '') %>%
+      hc_title(text = paste0('Balance Sheet as of: ', check1$endDate[1]), align = 'left',
+                  style = list(color = cols[6], fontWeight = 'bold')) %>%
+      hc_subtitle(text = 'US$Millions',
+               style = list(color = cols[10], fontWeight = 'bold'), align = 'left') %>%
+      hc_colors(cols[6:13])
+    }
     }
   })
   
