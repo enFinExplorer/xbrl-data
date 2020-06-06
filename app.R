@@ -200,9 +200,9 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
     ),
     
     footer = tablerDashFooter(
-      copyrights = "@xbrl-Data, 2020"
+      copyrights = "@xbrlData LLC, 2020"
     ),
-    title = "xbrl-Data",
+    title = "xbrlData LLC",
 
     body = tablerDash::tablerDashBody(
       #theme_blue_gradient,
@@ -221,14 +221,15 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
             #src = "github.png",
             avatarUrl =  "dollar.PNG",
             width = 12,
-            p("xbrl-Data is a project designed to provide
+            p("xbrlData is a project designed to provide
             as-reported financial data from 10-Q/10-K filings
             on the Edgar website for the SEC.  Parsing the data
             is complicated, time-intensive, and nerve-wracking,
             but can provide some great insights and analysis.  We
             provide the backup data for a minimal fee so as to support
             our continued efforts and to provide research tools to
-            interested parties."),
+            interested parties.  For bulk download of all companies,
+              please contact us via email"),
             
             h6('Twitter:'),
             tags$a(
@@ -535,6 +536,22 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
               )
               
             ),
+            fluidRow(
+              column(width = 12,
+                     #tablerCard(
+                     # title = "Current Assets/Liabilities", 
+                     #closable = FALSE, 
+                     #width = 12,
+                     #status = "info", 
+                     #solidHeader = FALSE, 
+                     #collapsible = TRUE,
+                     #enable_dropdown = FALSE,
+                     h4('Operating Income'),
+                     highchartOutput('operIncome')
+                     #)
+              )
+              
+            ),
             
             fluidRow(
               column(width = 12,
@@ -667,13 +684,6 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                      subtitle = "Seward Lee",
                      background = "",
                      src = "finreportr.PNG"
-                   ),
-                   tablerProfileCard(
-                     width = 12,
-                     title = "tidyRSS",
-                     subtitle = "Robert Myles",
-                     background = "",
-                     src = "tidyRSS.png"
                    )
                    
                    )
@@ -1072,6 +1082,60 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
           colorByPoint = FALSE
         ))  #%>% 
     }
+    }
+  })
+  
+  output$operIncome <- renderHighchart({
+    if(is.null(input$ticker)||input$ticker == ''||is.null(input$ticker1)||input$ticker1==''){
+      NULL
+    } else {
+      
+      check1 <- tables() %>% 
+        filter(Element == 'us-gaap_OperatingIncomeLoss') %>%
+        mutate(Year = as.integer(substr(PERIOD,3,7))) %>%
+        group_by(endDate, Period) %>% filter(Year == min(Year)) %>% ungroup() %>%
+        filter(Period == 12) %>% filter(!duplicated(paste0(endDate, fact))) %>%
+        select(Label, endDate, fact) %>% mutate(Label = 'Operating Income')
+      if(nrow(check1)==0){
+        check1 <- tables() %>%
+          filter(grepl('IncomeLossFromCon', Element)) %>%
+          filter(Period == 12) %>% filter(!is.na(arcrole)) %>%
+          filter(endDate == max(endDate)) %>% filter(fact == min(fact))
+        
+        check1 <- tables() %>% 
+          filter(Element ==check1$Element[1]) %>%
+          mutate(Label = check1$Label) %>%
+          filter(!is.na(arcrole)) %>%
+          mutate(Year = as.integer(substr(PERIOD,3,7))) %>%
+          group_by(endDate, Period) %>% filter(Year == min(Year)) %>% ungroup() %>%
+          filter(Period == 12) %>% filter(!duplicated(paste0(endDate, fact))) %>%
+          select(Label, endDate, fact) #%>% mutate(Label = 'Operating Income')
+      }
+      
+      #print(head(df1))
+      if(nrow(check1) == 0){
+        NULL
+      } else {
+        
+        highchart() %>%
+          hc_xAxis(title = list(text = ''), categories = unique(sort(check1$endDate)),
+                   labels = list(style = list(fontSize = '12px', fontWeight = 'bold')))%>%
+          hc_yAxis(title = list(text = '<b>US$Millions</b>', style = list(fontSize = '16px', fontWeight = 'bold')),
+                   labels = list(style = list(fontSize = '12px', fontWeight = 'bold'))) %>%
+          hc_add_series(data = check1, "column", hcaes(x = endDate, y = fact), name = check1$Label[1]) %>%
+          hc_subtitle(text = "Data Source: SEC XBRL",
+                      align = 'left') %>%
+          hc_caption(text = "Powered by Highcharts") %>%
+          hc_colors(cols) %>%
+          hc_plotOptions(
+            series = list(
+              showInLegend = FALSE,
+              pointFormat = "{point.y}"
+            ),
+            column = list(
+              colorByPoint = FALSE
+            ))  #%>% 
+      }
     }
   })
   
