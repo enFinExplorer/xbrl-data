@@ -383,9 +383,9 @@ cols <- c('#00a4e3', '#a31c37', '#adafb2', '#d26400', '#eaa814', '#5c1848', '#78
                                         // Configure environment
                                         env: 'production',
                                         client: {
-                                        sandbox: 'AUzCJ8LZWpfr-5q8RbpAbzgbnviGF01LygUugclYSUENDcN2SeN8n_hRjq8B7nFaEor1z4yWOlcgtbd_',
-                                        production: 'AUrAmAun5ur3lSIWKmF4J_wfFQAFjvobTAfznVFLiBstiRO37wVWikHsLBTRpbaRRiilftsb72iIH_vG',
-                                        id: 'AUrAmAun5ur3lSIWKmF4J_wfFQAFjvobTAfznVFLiBstiRO37wVWikHsLBTRpbaRRiilftsb72iIH_vG'
+                                        sandbox: 'hidden',
+                                        production: 'hidden',
+                                        id: 'hidden'
                                         },
                                         // Customize button (optional)
                                         locale: 'en_US',
